@@ -1,4 +1,6 @@
 var run = {};
+run.timeScroll = null; //挂载整屏切换动画的实例
+run.currentStep = "step1"; //加载页面后的第一个状态
 //初始化
 run.init = function(){
 	run.resize();//设置每一屏的高度和top值
@@ -10,18 +12,262 @@ run.init = function(){
 	run.button3D(".start",".state1",".state2",0.3);//初始化3D函数
 	
 	$('body').height(8500);
+	
+	run.configTimeScroll();//配置整屏切换动画、每一屏中的小动画
+	
+	twoAnimate.init(); //执行第二屏的动画
 }
 
 //页面加载完后初始化
-$(document).ready(run.init);
+$(document).ready( run.init );
 
 //配置事件函数方法
 run.events = function(){
 	//在窗口改变的时候给每一屏重新赋值
 	$(window).resize( run.resize() );
 	
+	//设置滚动条的初始值
+	$(window).bind("scroll",scrollFn);
+	function scrollFn(){
+		$(window).scrollTop(0);
+	}
+	
+	//当鼠标按下的时候解绑掉scrollFn函数
+	$(window).bind("mousedown",function(){
+		$(window).unbind("scroll",scrollFn);
+	});
+	//当鼠标抬起的时候让让页面到达某一屏
+	$(window).bind("mouseup",run.mouseupFn);
+	
 	//执行导航的交互
 	run.nav();
+	
+	//干掉浏览器默认行为
+	$('.wrapper').bind("mousewheel",function(ev){
+		ev.preventDefault();
+	})
+	
+	//滚动条滚动的时候计算页面该到的地方
+	$(window).bind("scroll",run.scrollStatus);
+	
+	
+	//重新写滚轮事件
+	var timer = null;
+	$('.wrapper').one("mousewheel",mousewheelFn);
+	function mousewheelFn(ev,direction){
+		$(window).unbind("scroll",scrollFn);
+		if(direction < 1){ // ↓
+			run.changeStep('next');
+		}else{ // ↑
+			run.changeStep('prev')
+		}
+		clearTimeout(timer);
+		timer = setTimeout(function(){
+			$('.wrapper').one("mousewheel",mousewheelFn);
+		},800)
+	}
+};
+
+//当鼠标抬起的时候让让页面到达某一屏
+run.mouseupFn = function(){
+	//计算滚动条在滚动过程中的一个比例
+	var sca = run.scale();
+	//计算当前页面到达的某个时间点
+	var times = sca * run.timeScroll.totalDuration();
+	//获取当前时间点的上一个状态和下一个状态
+	var prevStep = run.timeScroll.getLabelBefore(times);
+	var nextStep = run.timeScroll.getLabelAfter(times);
+	//获取到上一个和下一个状态的时间
+	var prevTime =  run.timeScroll.getLabelTime(prevStep);
+	var nextTime =  run.timeScroll.getLabelTime(nextStep);
+	//计算差值
+	var prevDvalue = Math.abs( prevTime - times );
+	var nextDvalue = Math.abs( nextTime - times );
+	
+	var step = '';
+	if(sca === 0){
+		step ="step1";
+	}else if(sca === 1){
+		step ="step5";
+	}else if(prevDvalue < nextDvalue){
+		step = prevStep;
+	}else{
+		step = nextStep;
+	}
+	
+	run.timeScroll.tweenTo(step);
+	
+	//------------------------当松开鼠标的时候，滚动条滚到某个状态计算出来的距离------------------
+	//获取动画的总时长
+	var totalTime = run.timeScroll.totalDuration();
+	//获取当前要到达的状态的时间
+	var afterTime = run.timeScroll.getLabelTime(step);
+	//获取到滚动条可以滚的最大高度
+	var maxH = $('body').height() - $(window).height();
+	//计算出滚动条滚动的距离
+	var positionY = afterTime/totalTime * maxH ;
+	//计算出滚动距离的持续时间
+	var d = Math.abs(run.timeScroll.time() - afterTime);
+	//给滚动条滚动
+	var scrollAnimate = new TimelineMax();
+	scrollAnimate.to('html,body',d,{scrollTop:positionY});
+	//更新状态
+	run.currentStep = step;
+};
+
+//计算滚动条在滚动过程中的一个比例
+run.scale = function(){
+	var scrollT = $(window).scrollTop(); //滚动了的距离
+	var MaxH = $('body').height() - $(window).height(); //滚动的最大距离
+	var s = scrollT/MaxH; //比例
+	return s;
+}
+
+
+//滚动条滚动的时候计算页面该到的地方
+run.scrollStatus = function(){
+	var times = run.scale() * run.timeScroll.totalDuration();
+	run.timeScroll.seek(times,false);
+}
+
+//整屏切换并且计算滚动条的距离
+run.changeStep = function(value){
+	if(value == "next"){
+		// 获取到当前的时间
+		var currentTime = run.timeScroll.getLabelTime(run.currentStep);
+		//获取到下一个状态的字符串
+		var afterStep = run.timeScroll.getLabelAfter(currentTime);
+		//防止到最后的时候仍然计算
+		if(!afterStep){
+			return;
+		}
+		//获取动画的总时长
+		var totalTime = run.timeScroll.totalDuration();
+		//获取到下一个状态的时间
+		var afterTime = run.timeScroll.getLabelTime(afterStep);
+		//获取到滚动条可以滚的最大高度
+		var maxH = $('body').height() - $(window).height();
+		//计算出滚动条滚动的距离
+		var positionY = afterTime/totalTime * maxH ;
+		//计算出滚动距离的持续时间
+		var d = Math.abs(run.timeScroll.time() - afterTime);
+		//给滚动条滚动
+		var scrollAnimate = new TimelineMax();
+		scrollAnimate.to('html,body',d,{scrollTop:positionY});
+		
+		//运动到下一个状态
+		//run.timeScroll.tweenTo(afterStep);
+		//记录当前的状态为下一个状态，方便切换
+		run.currentStep = afterStep;
+		
+	}else{
+		// 获取到当前的时间
+		var currentTime = run.timeScroll.getLabelTime(run.currentStep);
+		//获取到上一个状态的字符串
+		var beforeStep = run.timeScroll.getLabelBefore(currentTime);
+		if(!beforeStep){
+			return;
+		}
+		//获取动画的总时长
+		var totalTime = run.timeScroll.totalDuration();
+		//获取到上一个状态的时间
+		var beforeTime = run.timeScroll.getLabelTime(beforeStep);
+		//获取到滚动条可以滚的最大高度
+		var maxH = $('body').height() - $(window).height();
+		//计算出滚动条滚动的距离
+		var positionY = beforeTime/totalTime * maxH ;
+		//计算出滚动距离的持续时间
+		var d = Math.abs(run.timeScroll.time() - beforeTime);
+		//给滚动条滚动
+		var scrollAnimate = new TimelineMax();
+		scrollAnimate.to('html,body',d,{scrollTop:positionY});
+		//运动到上一个状态
+		//run.timeScroll.tweenTo(beforeStep);
+		//记录当前的状态为上一个状态，方便切换
+		run.currentStep = beforeStep;
+	}
+};
+
+//配置整屏切换动画、每一屏中的小动画
+run.configTimeScroll = function(){
+	var time = run.timeScroll ? run.timeScroll.time() : 0;
+	if(run.timeScroll) run.timeScroll.clear();
+	//把run.timeScroll 实例化
+	run.timeScroll = new TimelineMax();
+	
+	//当从第二屏切换到第一屏的时候，让第二屏的动画时间点归0.
+	run.timeScroll.to(".scene1",0,{onReverseComplete:function(){
+		twoAnimate.timeline.seek(0,false);
+	}},0);
+	
+			run.timeScroll.add("step1"); //设置第一个状态
+		run.timeScroll.to(".scene2",0.8,{top:0,ease:Cubic.easeInOut});
+		run.timeScroll.to({},0.1,{onComplete:function(){
+			menu.changeMenu('menu_state2'); //切换到第二屏调用的函数，同时传入导航条变化的class
+		},onReverseComplete:function(){
+			menu.changeMenu('menu_state1'); //第一屏
+		}},"-=0.2");
+		//当切换到第二屏的时候，翻转第二屏的第一个动画。
+		run.timeScroll.to({},0,{onComplete:function(){
+			twoAnimate.timeline.tweenTo("state1");
+		}},"-=0.2");
+		
+			run.timeScroll.add("step2"); //设置第二个状态
+			
+			
+		// ------------- 主动画中配置第二屏的小动画	start  ----------------
+		run.timeScroll.to({},0,{onComplete:function(){
+			twoAnimate.timeline.tweenTo("state2");
+		},onReverseComplete:function(){
+			twoAnimate.timeline.tweenTo("state1");
+		}});
+		
+		run.timeScroll.to({},0.4,{});
+		
+			run.timeScroll.add("point1");
+			
+		run.timeScroll.to({},0,{onComplete:function(){
+			twoAnimate.timeline.tweenTo("state3");
+		},onReverseComplete:function(){
+			twoAnimate.timeline.tweenTo("state2");
+		}});
+		
+		run.timeScroll.to({},0.4,{});
+		
+			run.timeScroll.add("point2");
+			
+		run.timeScroll.to({},0,{onComplete:function(){
+			twoAnimate.timeline.tweenTo("state4");
+		},onReverseComplete:function(){
+			twoAnimate.timeline.tweenTo("state3");
+		}});
+		
+		run.timeScroll.to({},0.4,{});
+		
+			run.timeScroll.add("point3");
+				
+		// -------------- 主动画中配置第二屏的小动画	end ---------------
+		
+		
+	
+		run.timeScroll.to(".scene3",0.8,{top:0,ease:Cubic.easeInOut});
+		run.timeScroll.to({},0.1,{onComplete:function(){
+			menu.changeMenu('menu_state3'); //切换到第二屏调用的函数，同时传入导航条变化的class
+		},onReverseComplete:function(){
+			menu.changeMenu('menu_state2'); //第一屏
+		}},"-=0.2");
+		
+			run.timeScroll.add("step3"); //设置第三个状态
+			
+		run.timeScroll.to(".scene4",0.8,{top:0,ease:Cubic.easeInOut});
+			run.timeScroll.add("step4"); //设置第四个状态
+			
+		run.timeScroll.to(".scene5",0.8,{top:0,ease:Cubic.easeInOut});
+			run.timeScroll.add("step5"); //设置第五个状态
+			
+		run.timeScroll.stop();
+		//当改变浏览器的大小时候，就让动画走到之前的时间点
+		run.timeScroll.seek(time);
 }
 
 //配置首屏的动画
@@ -107,6 +353,7 @@ run.resize = function(){
 	$(".scene").height( $(window).height() );
 	//设置除了第一屏的其他屏的top值为可视区的高度
 	$(".scene:not(':first')").css('top',$(window).height());
+	run.configTimeScroll();
 	
 	//设置响应
 	if( $(window).width() <= 950 ){
@@ -116,4 +363,58 @@ run.resize = function(){
 		$("body").removeClass("r950");
 		$(".menu").css("top",22);
 	}
+}
+
+//配置第二屏动画
+var twoAnimate = {};
+twoAnimate.timeline = new TimelineMax();
+//具体的第二屏的动画要实现的细节
+twoAnimate.init = function(){
+	twoAnimate.timeline.staggerTo(".scene2_1 img",1.5,{opacity:1,rotationX:0,ease:Elastic.easeOut},0.1);
+		
+		twoAnimate.timeline.add("state1");
+	twoAnimate.timeline.staggerTo(".scene2_1 img",0.2,{opacity:0,rotationX:90});
+	twoAnimate.timeline.to(".scene2_2 .left",0.4,{opacity:1});
+	twoAnimate.timeline.staggerTo(".scene2_2 .right img",0.3,{opacity:1,rotationX:0,ease:Cubic.easeInOut},0,"-=0.4");
+	
+		twoAnimate.timeline.add("state2");
+		
+	twoAnimate.timeline.to(".scene2_2 .left",0.4,{opacity:0});
+	twoAnimate.timeline.staggerTo(".scene2_2 .right img",0.3,{opacity:0,rotationX:90,ease:Cubic.easeInOut},0,"-=0.4");
+	twoAnimate.timeline.to(".scene2_3 .left",0.4,{opacity:1});
+	twoAnimate.timeline.staggerTo(".scene2_3 .right img",0.3,{opacity:1,rotationX:0,ease:Cubic.easeInOut},0,"-=0.4");
+	
+		twoAnimate.timeline.add("state3");
+	
+	twoAnimate.timeline.to(".scene2_3 .left",0.4,{opacity:0});
+	twoAnimate.timeline.staggerTo(".scene2_3 .right img",0.3,{opacity:0,rotationX:90,ease:Cubic.easeInOut},0,"-=0.4");
+	twoAnimate.timeline.to(".scene2_4 .left",0.4,{opacity:1});
+	twoAnimate.timeline.staggerTo(".scene2_4 .right img",0.3,{opacity:1,rotationX:0,ease:Cubic.easeInOut},0,"-=0.4");
+	
+		twoAnimate.timeline.add("state4");
+	
+	twoAnimate.timeline.stop();
+}
+
+//实现导航3D翻转动画
+var  menu = {};
+//每滚动一次屏幕就调用这个函数，函数里面是3D翻转的具体实现过程
+menu.changeMenu = function(stateClass){ //参数：切换到某一屏的时候要传入的class名字
+	//具体实现翻转效果
+	var oldMenu = $(".menu");
+	var newMenu = oldMenu.clone();
+	newMenu.removeClass("menu_state1").removeClass("menu_state2").removeClass("menu_state3");
+	newMenu.addClass(stateClass);
+	$(".menu_wrapper").append(newMenu);
+	oldMenu.addClass("removeClass");
+	run.nav();
+	run.button3D(".start",".state1",".state2",0.3);
+	var menuAnimate = new TimelineMax();
+	menuAnimate.to(newMenu,0,{top:100,rotationX:-90,transformPerspective:600,transformOrigin:"top center"});
+	menuAnimate.to(oldMenu,0,{top:22,rotationX:0,transformPerspective:600,transformOrigin:"center bottom"});
+	
+	menuAnimate.to(oldMenu,0.3,{top:-55,rotationX:90,ease:Cubic.easeInOut,onComplete:function(){
+		$('.removeClass').remove();
+	}});
+	menuAnimate.to(newMenu,0.3,{top:22,rotationX:0,ease:Cubic.easeInOut},"-=0.3");
 }

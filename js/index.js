@@ -13,7 +13,7 @@ run.init = function(){
 	run.button3D(".button1",".state1",".state2",0.3);//初始化3D函数
 	run.button3D(".button2",".state1",".state2",0.3);//初始化3D函数
 	
-	run.imgW($(".scene img")); //设置每一屏的宽度
+	//run.imgW($(".scene img")); //设置每一屏的宽度
 	
 	run.configTimeScroll();//配置整屏切换动画、每一屏中的小动画
 	
@@ -344,7 +344,8 @@ run.configNav = function(){
 	initAnimate.to('.light_left',0.7,{rotationZ:0,ease:Cubic.easeOut},'-=2');
 	initAnimate.to('.light_right',0.7,{rotationZ:0,ease:Cubic.easeOut},'-=2');
 	initAnimate.to('.controls',0.5,{bottom:20,opacity:1},'-=0.7');
-	initAnimate.to('body',0,{'overflow-y':'scroll'});
+	//设置是否显示滚动条
+	//initAnimate.to('body',0,{'overflow-y':'scroll'});
 }
 
 //导航条中的交互
@@ -446,7 +447,7 @@ run.resize = function(){
 		$("body").removeClass("r950");
 		$('body').height(8500);
 		$(".menu").css("top",22);
-		$(".left").css("left",-300);
+		$(".left").css("left_nav",-300);
 	}
 }
 
@@ -455,11 +456,14 @@ run.imgW = function(imgE){
 	imgE.each(function(){
 		$(this).load(function(){
 			var W = $(this).width();
-			$(this).css({
+			if($(window).width() <=950){
+				$(this).css({
 				width:"100%",
 				"max-width" : W,
 				height : "auto"
 			})
+			}
+			
 		})
 	})
 }

@@ -21,6 +21,8 @@
    //要执行的某些行为 
   }})
 `
+
+
 > onReverseComplete()：反向运动结束后触发对应的函数. 
 > 例 `
   animate.to({},0,{onReverseComplete:function(){

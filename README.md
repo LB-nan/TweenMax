@@ -6,4 +6,4 @@
 
 * 我把滚动条显示关闭了，开启的话可以在js代码中把下面代码的注释解开就好。
  
-     initAnimate.to('body',0,{'overflow-y':'scroll'});
+     `initAnimate.to('body',0,{'overflow-y':'scroll'});`

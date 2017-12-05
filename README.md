@@ -16,8 +16,14 @@
 > stop()：停止动画、play()：开始动画、reverse()：反向开始动画、使用，例： `animate.stop();`  
 
 > onComplete()：运动结束后触发对应的函数，在to()方法的第三个属性里面添加。
-例 `
+> 例 `
   animate.to({},0,{onComplete:function(){
+   //要执行的某些行为 
+  }})
+`
+> onReverseComplete()：反向运动结束后触发对应的函数. 
+> 例 `
+  animate.to({},0,{onReverseComplete:function(){
    //要执行的某些行为 
   }})
 `
